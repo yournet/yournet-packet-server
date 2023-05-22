@@ -12,7 +12,7 @@ CORS(app)
 def extract_keywords(content):
     apiURL = os.environ.get("KEYWORD_API_URL")
     apiKey = os.environ.get("KEYWORD_API_KEY")
-    url = "	https://api.matgim.ai/54edkvw2hn/api-keyword"
+    url = "https://api.matgim.ai/54edkvw2hn/api-keyword"
     headers = {
         "Content-Type": "application/json",
         "Authorization": "YOUR_API_KEY"  # Replace with your MATGIM API key
@@ -34,7 +34,12 @@ def index():
     for packet in packets:
         if packet.haslayer(scapy.TCP):
             http_request = packet.getlayer(scapy.TCP).payload
-            content = http_request.body.decode("utf-8")
+            content = http_request.load.decode("utf-8")
+
+            # Print the content of the HTTP request
+            print("HTTP Request Content:")
+            print(content)
+            print("-----------------------")
 
             # Extract the keywords using MATGIM API
             keywords = extract_keywords(content)
