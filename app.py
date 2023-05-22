@@ -2,11 +2,17 @@ from flask import Flask
 import scapy.all as scapy
 from elasticsearch import Elasticsearch
 import requests
+import os
+from flask_cors import CORS
+
 
 app = Flask(__name__)
+CORS(app)
 
 def extract_keywords(content):
-    url = "https://matgim.ai/public-api/api-keyword/extract"
+    apiURL = os.environ.get("KEYWORD_API_URL")
+    apiKey = os.environ.get("KEYWORD_API_KEY")
+    url = "	https://api.matgim.ai/54edkvw2hn/api-keyword"
     headers = {
         "Content-Type": "application/json",
         "Authorization": "YOUR_API_KEY"  # Replace with your MATGIM API key
