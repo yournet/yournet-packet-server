@@ -1,58 +1,57 @@
-from flask import Flask
-import scapy.all as scapy
-from elasticsearch import Elasticsearch
-import requests
-import os
-from flask_cors import CORS
+from flask import Flask, request
+from scapy.all import *
+from celery import Celery
+from sqlalchemy import create_engine, Column, Integer, String, DateTime
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from datetime import datetime
+import threading
 
 
 app = Flask(__name__)
-CORS(app)
+#app.config["CELERY_BROKER_URL"] = "redis://localhost:6379/0"
+#app.config["CELERY_RESULT_BACKEND"] = "redis://localhost:6379/0"
 
-def extract_keywords(content):
-    apiURL = os.environ.get("KEYWORD_API_URL")
-    apiKey = os.environ.get("KEYWORD_API_KEY")
-    url = "https://api.matgim.ai/54edkvw2hn/api-keyword"
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": "YOUR_API_KEY"  # Replace with your MATGIM API key
-    }
-    data = {
-        "content": content
-    }
-    response = requests.post(url, json=data, headers=headers)
-    if response.status_code == 200:
-        result = response.json()
-        keywords = result.get("keywords", [])
-        return keywords
-    else:
-        return []
+# Celery 객체 생성
+#celery = Celery(app.name, broker=app.config["CELERY_BROKER_URL"], backend=app.config["CELERY_RESULT_BACKEND"])
 
-@app.route("/")
-def index():
-    packets = scapy.sniff(count=1, filter="tcp port 80")
-    for packet in packets:
-        if packet.haslayer(scapy.TCP):
-            http_request = packet.getlayer(scapy.TCP).payload
-            content = http_request.load.decode("utf-8")
+# MySQL Database 설정
+engine = create_engine("mysql://<username>:<password>@localhost/<database_name>")
+Base = declarative_base()
 
-            # Print the content of the HTTP request
-            print("HTTP Request Content:")
-            print(content)
-            print("-----------------------")
+# MySQL 테이블 모델 정의
+class PacketLog(Base):
+    __tablename__ = "packet_logs"
+    id = Column(Integer, primary_key=True)
+    ip_address = Column(String(20))
+    packet_data = Column(String(1000))
+    timestamp = Column(DateTime)
 
-            # Extract the keywords using MATGIM API
-            keywords = extract_keywords(content)
+# MySQL 세션 생성
+Session = sessionmaker(bind=engine)
+session = Session()
 
-            # Save the keywords to Elasticsearch
-            es = Elasticsearch()
-            index = "keywords"
-            doc = {
-                "keywords": keywords
-            }
-            es.index(index=index, doc_type="_doc", body=doc)
+# Celery 작업 정의
+#@celery.task
 
-    return "Hello, World!"
+def process_packet(packet_data, ip_address, timestamp):
+    # 패킷 데이터 처리 및 MySQL에 저장
+    log = PacketLog(ip_address=ip_address, packet_data=packet_data, timestamp=timestamp)
+    session.add(log)
+    session.commit()
+
+@app.route("/", methods=["POST"])
+def capture_packet():
+    packet_data = request.data.decode("utf-8")
+    ip_address = request.remote_addr
+    timestamp = datetime.now()
+
+    # Celery 작업 실행
+    process_packet.delay(packet_data, ip_address, timestamp)
+
+    return "Packet captured and logged asynchronously!"
 
 if __name__ == "__main__":
+    app_thread = threading.Thread(target=process_packet)
+    app_thread.start()
     app.run(debug=True)
