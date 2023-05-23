@@ -16,9 +16,9 @@ app = Flask(__name__)
 #celery = Celery(app.name, broker=app.config["CELERY_BROKER_URL"], backend=app.config["CELERY_RESULT_BACKEND"])
 
 # MySQL Database 설정
-username = os.environ.get("MYSQL_ID_YOURNET")
-password = os.environ.get("MYSQL_PASSWORD_YOURNET")
-engine = create_engine("mysql://"+username+":"+password+"@"+"us-cdbr-east-06.cleardb.net:3306/heroku_ec04377ff1e0856")
+username = str(os.environ.get("MYSQL_ID_YOURNET"))
+password = str(os.environ.get("MYSQL_PASSWORD_YOURNET"))
+engine = create_engine("mysql://"+username+":"+password+"@us-cdbr-east-06.cleardb.net:3306/heroku_ec04377ff1e0856")
 Base = declarative_base()
 
 # MySQL 테이블 모델 정의
