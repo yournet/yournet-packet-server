@@ -1,12 +1,12 @@
 from flask import Flask, request
 from scapy.all import *
-from celery import Celery
+#from celery import Celery
 from sqlalchemy import create_engine, Column, Integer, String, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 import threading
-
+import os
 
 app = Flask(__name__)
 #app.config["CELERY_BROKER_URL"] = "redis://localhost:6379/0"
@@ -16,7 +16,9 @@ app = Flask(__name__)
 #celery = Celery(app.name, broker=app.config["CELERY_BROKER_URL"], backend=app.config["CELERY_RESULT_BACKEND"])
 
 # MySQL Database 설정
-engine = create_engine("mysql://<username>:<password>@localhost/<database_name>")
+username = os.environ.get("MYSQL_ID_YOURNET")
+password = os.environ.get("MYSQL_PASSWORD_YOURNET")
+engine = create_engine("mysql://"+username+":"+password+"@"+"us-cdbr-east-06.cleardb.net:3306/heroku_ec04377ff1e0856")
 Base = declarative_base()
 
 # MySQL 테이블 모델 정의
