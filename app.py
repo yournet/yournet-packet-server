@@ -117,6 +117,43 @@ def get_similar_users(user_id):
 
     return jsonify(similar_users)
 
+def get_similar_users_func(user_id):
+    # 사용자 정보 가져오기
+    user = Users.query.get(user_id)
+    if user is None:
+        return jsonify({"error": "User not found"}), 404
+
+    # 사용자의 해시태그별 점수 가져오기
+    user_scores = np.array([score.score for score in user.user_score_hash_tags]).reshape(1, -1)
+
+    # 모든 사용자 정보 가져오기
+    all_users = Users.query.all()
+    user_vectors = []
+    for u in all_users:
+        scores = np.array([score.score for score in u.user_score_hash_tags])
+        if scores.size == 0:  # 점수 배열이 비어있는 사용자는 제외
+            continue
+        scores = scores.reshape(1, -1)
+        user_vectors.append(scores)
+
+    if len(user_vectors) == 0:
+        return jsonify({"error": "No similar users found"}), 404
+
+    # 유사도 계산을 위해 사용자 벡터 연결
+    user_vectors = np.concatenate(user_vectors)
+    distances = pairwise_distances(user_scores, user_vectors)
+    similar_user_indices = np.argsort(distances)[0][:5]  # 가장 유사한 사용자의 인덱스 가져오기
+
+    similar_users = []
+    for idx in similar_user_indices:
+        similar_user = all_users[idx]
+        similar_users.append({
+            "user_id": similar_user.user_id,
+            "name": similar_user.name,
+            "email": similar_user.email
+        })
+
+    return similar_users
 
 @app.route("/users/<int:user_id>/recommend", methods=["GET"])
 def recommend_posts(user_id):
@@ -124,22 +161,35 @@ def recommend_posts(user_id):
     if user is None:
         return jsonify({"error": "User not found"}), 404
 
-    user_scores = [score.score for score in user.user_score_hash_tags]
+    # Get the user's similar users
+    similar_users = get_similar_users_func(user_id)
 
-    all_posts = Post.query.all()
-    recommended_posts = []
-    for post in all_posts:
-        post_scores = [score.score for score in post.user_score_hash_tags]
-        intersection = set(user_scores).intersection(post_scores)
-        if len(intersection) > 0:
-            recommended_posts.append({
-                "post_id": post.post_id,
-                "title": post.title,
-                "content": post.content
-            })
+    # Collect the post IDs written by similar users
+    post_ids = []
+    for similar_user in similar_users:
+        posts = Post.query.filter_by(user_id=similar_user["user_id"]).all()
+        for post in posts:
+            post_ids.append(post.post_id)
 
-    return jsonify(recommended_posts)
+    # Retrieve the recommended posts
+    recommended_posts = Post.query.filter(Post.post_id.in_(post_ids)).all()
+
+    # Prepare the response
+    recommended_posts_data = []
+    for post in recommended_posts:
+        recommended_posts_data.append({
+            "post_id": post.post_id,
+            "title": post.title,
+            "content": post.content,
+            "user_id": post.user_id
+        })
+
+    return jsonify(recommended_posts_data)
+
+
 
 
 if __name__ == "__main__":
     app.run()
+
+
