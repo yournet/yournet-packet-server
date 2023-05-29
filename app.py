@@ -1,12 +1,13 @@
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
-from sklearn.cluster import KMeans
 from sklearn.metrics import pairwise_distances
 import numpy as np
+from flask_cors import CORS
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = "mysql://root:urnotyelping00@34.22.93.25:3306/yournet"
 db = SQLAlchemy(app)
+CORS(app)
 
 # 사용자 정보 모델 정의
 class Users(db.Model):
